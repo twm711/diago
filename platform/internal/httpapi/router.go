@@ -170,6 +170,28 @@ func NewRouter(deps Deps) http.Handler {
 		_ = json.NewEncoder(w).Encode(agents)
 	})
 
+	// IVR admin endpoints: view queue and assign
+	mux.HandleFunc("GET /v1/ivr/queue", func(w http.ResponseWriter, r *http.Request) {
+		q := deps.IVREngine.ListQueue()
+		_ = json.NewEncoder(w).Encode(q)
+	})
+
+	mux.HandleFunc("POST /v1/ivr/assign", func(w http.ResponseWriter, r *http.Request) {
+		var body struct {
+			AgentID string `json:"agent_id"`
+		}
+		if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+			http.Error(w, err.Error(), http.StatusBadRequest)
+			return
+		}
+		s := deps.IVREngine.AssignNext(body.AgentID)
+		if s == nil {
+			http.Error(w, "no session assigned", http.StatusNotFound)
+			return
+		}
+		_ = json.NewEncoder(w).Encode(s)
+	})
+
 	// WebSocket endpoint for ASR real-time results
 	mux.HandleFunc("GET /v1/ws/asr", func(w http.ResponseWriter, r *http.Request) {
 		pcid := r.URL.Query().Get("pcid")

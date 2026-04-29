@@ -37,12 +37,17 @@ func main() {
 	aiGateway := ai.NewGateway(logger)
 	// persist ASR results into DB
 	aiGateway.SetPersist(func(pcID string, res ai.ASRResult) {
-		// best-effort persistence: link by pcID -> session unknown here
+		// best-effort persistence: try to link pcID -> sessionID via gateway mapping
+		var sessID *uint
+		if id, ok := webrtcGateway.GetSessionForPC(pcID); ok {
+			sessID = &id
+		}
 		rec := call.ASRRecord{
-			PCID:   pcID,
-			Text:   res.Text,
-			Final:  res.Final,
-			Offset: res.Offset,
+			SessionID: sessID,
+			PCID:      pcID,
+			Text:      res.Text,
+			Final:     res.Final,
+			Offset:    res.Offset,
 		}
 		_ = callService.CreateASRRecord(context.Background(), &rec)
 	})

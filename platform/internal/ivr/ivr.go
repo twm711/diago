@@ -42,6 +42,34 @@ func (e *Engine) ListAgents() []string {
 	return res
 }
 
+func (e *Engine) ListQueue() []call.Session {
+	e.mu.Lock()
+	defer e.mu.Unlock()
+	res := make([]call.Session, len(e.queue))
+	copy(res, e.queue)
+	return res
+}
+
+// AssignNext assigns the next queued session to the specified agent (if any queued).
+func (e *Engine) AssignNext(agentID string) *call.Session {
+	e.mu.Lock()
+	defer e.mu.Unlock()
+	if len(e.queue) == 0 {
+		return nil
+	}
+	s := e.queue[0]
+	e.queue = e.queue[1:]
+	if _, ok := e.agents[agentID]; ok {
+		if e.onAssign != nil {
+			go e.onAssign(agentID, s)
+		}
+		return &s
+	}
+	// agent not found, push session back
+	e.queue = append([]call.Session{s}, e.queue...)
+	return nil
+}
+
 // Enqueue adds session to the queue and attempts assignment
 func (e *Engine) Enqueue(s call.Session) {
 	e.mu.Lock()

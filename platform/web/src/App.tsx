@@ -4,6 +4,52 @@ import { AudioOutlined, CloudServerOutlined, FieldTimeOutlined, PhoneOutlined, P
 const { Header, Content } = Layout
 const { Title, Paragraph, Text } = Typography
 
+import { useEffect, useRef, useState } from 'react'
+
+function AsrControl() {
+  const [pcid, setPcid] = useState('')
+  const [messages, setMessages] = useState<string[]>([])
+  const wsRef = useRef<WebSocket | null>(null)
+
+  useEffect(() => {
+    return () => {
+      if (wsRef.current) wsRef.current.close()
+    }
+  }, [])
+
+  const startASR = async () => {
+    await fetch('/v1/webrtc/asr/start', { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify({ pcId: pcid }) })
+  }
+
+  const stopASR = async () => {
+    await fetch('/v1/webrtc/asr/stop', { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify({ pcId: pcid }) })
+  }
+
+  const connectWS = () => {
+    if (wsRef.current) wsRef.current.close()
+    const url = `${location.protocol === 'https:' ? 'wss' : 'ws'}://${location.host}/v1/ws/asr?pcid=${encodeURIComponent(pcid)}`
+    const ws = new WebSocket(url)
+    ws.onmessage = (e) => setMessages((m) => [...m, e.data])
+    wsRef.current = ws
+  }
+
+  return (
+    <Card title="ASR 控制" bordered={false} className="panel-card">
+      <Space direction="vertical" style={{ width: '100%' }}>
+        <input value={pcid} onChange={(e) => setPcid(e.target.value)} placeholder="pcid" />
+        <Space>
+          <Button onClick={startASR}>Start ASR</Button>
+          <Button onClick={stopASR}>Stop ASR</Button>
+          <Button onClick={connectWS}>Connect WS</Button>
+        </Space>
+        <div style={{ maxHeight: 240, overflow: 'auto', background: '#fff', padding: 8 }}>
+          {messages.map((m, i) => <div key={i}><code>{m}</code></div>)}
+        </div>
+      </Space>
+    </Card>
+  )
+}
+
 const callEvents = [
   { time: '09:02:18', title: '外呼任务进入智能路由', desc: '按技能组与优先级匹配坐席，触发 AI 预检。' },
   { time: '09:02:21', title: 'WebRTC 网关建立媒体通道', desc: '浏览器端音视频通过 Pion 网关接入。' },
@@ -154,6 +200,8 @@ function App() {
                   </Space>
                 </Space>
               </Card>
+              <div style={{ height: 16 }} />
+              <AsrControl />
             </Col>
           </Row>
         </section>
