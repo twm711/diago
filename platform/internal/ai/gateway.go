@@ -16,6 +16,9 @@ type Gateway struct {
 	asrSessions map[string]*ASRSession
 	// subscribers keyed by pcID -> set of chans
 	subscribers map[string]map[chan ASRResult]struct{}
+	// optional persist callback
+	persistMu sync.Mutex
+	persist   func(pcID string, res ASRResult)
 }
 
 func NewGateway(log *slog.Logger) *Gateway {
@@ -58,6 +61,7 @@ func (g *Gateway) StartASR(pcID string, r io.Reader) (<-chan ASRResult, error) {
 			case <-ctx.Done():
 				res := ASRResult{Text: "", Final: true, Offset: offset}
 				s.results <- res
+				g.persistIfSet(pcID, res)
 				g.broadcast(pcID, res)
 				return
 			case <-ticker.C:
@@ -68,16 +72,34 @@ func (g *Gateway) StartASR(pcID string, r io.Reader) (<-chan ASRResult, error) {
 				// emit a fake partial result
 				res := ASRResult{Text: "(partial) hello world", Final: false, Offset: offset}
 				s.results <- res
+				g.persistIfSet(pcID, res)
 				g.broadcast(pcID, res)
 			}
 		}
 		// after loop emit final
 		res := ASRResult{Text: "hello world", Final: true, Offset: offset}
 		s.results <- res
+		g.persistIfSet(pcID, res)
 		g.broadcast(pcID, res)
 	}()
 
 	return s.results, nil
+}
+
+// SetPersist sets an optional callback invoked for every ASR result produced.
+func (g *Gateway) SetPersist(fn func(pcID string, res ASRResult)) {
+	g.persistMu.Lock()
+	defer g.persistMu.Unlock()
+	g.persist = fn
+}
+
+func (g *Gateway) persistIfSet(pcID string, res ASRResult) {
+	g.persistMu.Lock()
+	fn := g.persist
+	g.persistMu.Unlock()
+	if fn != nil {
+		go fn(pcID, res)
+	}
 }
 
 func (g *Gateway) StopASR(pcID string) {

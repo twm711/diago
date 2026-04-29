@@ -57,3 +57,17 @@ func (s *Service) GetSessionByID(ctx context.Context, id uint) (*Session, error)
 func (s *Service) UpdateSessionState(ctx context.Context, id uint, state string) error {
 	return s.db.WithContext(ctx).Model(&Session{}).Where("id = ?", id).Update("state", state).Error
 }
+
+type ASRRecord struct {
+	ID        uint      `gorm:"primaryKey" json:"id"`
+	SessionID *uint     `gorm:"index" json:"sessionId,omitempty"`
+	PCID      string    `gorm:"size:128;index" json:"pcid"`
+	Text      string    `gorm:"type:text" json:"text"`
+	Final     bool      `json:"final"`
+	Offset    int64     `json:"offset"`
+	CreatedAt time.Time `json:"createdAt"`
+}
+
+func (s *Service) CreateASRRecord(ctx context.Context, r *ASRRecord) error {
+	return s.db.WithContext(ctx).Create(r).Error
+}

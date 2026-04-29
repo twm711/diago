@@ -35,6 +35,17 @@ func main() {
 
 	callService := call.NewService(database, logger)
 	aiGateway := ai.NewGateway(logger)
+	// persist ASR results into DB
+	aiGateway.SetPersist(func(pcID string, res ai.ASRResult) {
+		// best-effort persistence: link by pcID -> session unknown here
+		rec := call.ASRRecord{
+			PCID:   pcID,
+			Text:   res.Text,
+			Final:  res.Final,
+			Offset: res.Offset,
+		}
+		_ = callService.CreateASRRecord(context.Background(), &rec)
+	})
 	webrtcGateway := webrtcgw.NewGateway(logger)
 
 	ivrEngine := ivr.NewEngine(logger)
