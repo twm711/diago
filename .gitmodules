@@ -1,0 +1,3 @@
+[submodule "kernel/diago"]
+	path = kernel/diago
+	url = https://github.com/emiago/diago.git
