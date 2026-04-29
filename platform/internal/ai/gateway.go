@@ -19,10 +19,11 @@ type Gateway struct {
 	// optional persist callback
 	persistMu sync.Mutex
 	persist   func(pcID string, res ASRResult)
+	provider  Provider
 }
 
 func NewGateway(log *slog.Logger) *Gateway {
-	return &Gateway{log: log, asrSessions: map[string]*ASRSession{}, subscribers: map[string]map[chan ASRResult]struct{}{}}
+	return &Gateway{log: log, asrSessions: map[string]*ASRSession{}, subscribers: map[string]map[chan ASRResult]struct{}{}, provider: nil}
 }
 
 type ASRResult struct {
@@ -40,6 +41,10 @@ type ASRSession struct {
 
 // StartASR starts a fake ASR session that reads from provided reader and emits periodic results.
 func (g *Gateway) StartASR(pcID string, r io.Reader) (<-chan ASRResult, error) {
+	// If a provider is configured, delegate to it
+	if g.provider != nil {
+		return g.provider.Start(context.Background(), pcID, r)
+	}
 	g.mu.Lock()
 	defer g.mu.Unlock()
 	if _, ok := g.asrSessions[pcID]; ok {
@@ -91,6 +96,13 @@ func (g *Gateway) SetPersist(fn func(pcID string, res ASRResult)) {
 	g.persistMu.Lock()
 	defer g.persistMu.Unlock()
 	g.persist = fn
+}
+
+// SetProvider configures a pluggable ASR provider.
+func (g *Gateway) SetProvider(p Provider) {
+	g.mu.Lock()
+	defer g.mu.Unlock()
+	g.provider = p
 }
 
 func (g *Gateway) persistIfSet(pcID string, res ASRResult) {

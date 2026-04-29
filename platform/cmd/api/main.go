@@ -35,6 +35,11 @@ func main() {
 
 	callService := call.NewService(database, logger)
 	aiGateway := ai.NewGateway(logger)
+	// configure a local stub provider with identity transcoder for development
+	stub := &ai.StubProvider{Transcoder: &ai.IdentityTranscoder{}}
+	aiGateway.SetProvider(stub)
+
+	webrtcGateway := webrtcgw.NewGateway(logger)
 	// persist ASR results into DB
 	aiGateway.SetPersist(func(pcID string, res ai.ASRResult) {
 		// best-effort persistence: try to link pcID -> sessionID via gateway mapping
@@ -51,7 +56,6 @@ func main() {
 		}
 		_ = callService.CreateASRRecord(context.Background(), &rec)
 	})
-	webrtcGateway := webrtcgw.NewGateway(logger)
 
 	ivrEngine := ivr.NewEngine(logger)
 	// simple assign handler: log assignment and mark session state via call service
