@@ -9,6 +9,7 @@ type Config struct {
 	HTTPAddr    string
 	MySQLDSN    string
 	CORSOrigins []string
+	ASREndpoint string // websocket URL for external ASR provider
 }
 
 func Load() Config {
@@ -16,6 +17,7 @@ func Load() Config {
 		HTTPAddr:    getEnv("HTTP_ADDR", ":8080"),
 		MySQLDSN:    getEnv("MYSQL_DSN", "root:root@tcp(127.0.0.1:3306)/aicc?parseTime=true&charset=utf8mb4&loc=Local"),
 		CORSOrigins: splitCSV(getEnv("CORS_ORIGINS", "http://localhost:5173")),
+		ASREndpoint: getEnv("ASR_ENDPOINT", ""),
 	}
 }
 

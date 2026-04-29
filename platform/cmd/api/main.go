@@ -41,8 +41,21 @@ func main() {
 	if _, err := exec.LookPath("ffmpeg"); err == nil {
 		transcoder = &ai.ExternalFFmpegTranscoder{}
 	}
-	stub := &ai.StubProvider{Transcoder: transcoder}
-	aiGateway.SetProvider(stub)
+	// choose provider: if ASR endpoint configured, use WSNetProvider, otherwise local stub
+	if cfg.ASREndpoint != "" {
+		logger.Info("using WSNetProvider", "endpoint", cfg.ASREndpoint)
+		headers := make(map[string][]string)
+		// optionally pass auth via env var ASR_AUTH (e.g., Authorization: Bearer <token>)
+		if v := os.Getenv("ASR_AUTH"); v != "" {
+			headers["Authorization"] = []string{v}
+		}
+		netProv := ai.NewWSNetProvider(cfg.ASREndpoint, nil, logger)
+		netProv.Transcoder = transcoder
+		aiGateway.SetProvider(netProv)
+	} else {
+		stub := &ai.StubProvider{Transcoder: transcoder}
+		aiGateway.SetProvider(stub)
+	}
 
 	webrtcGateway := webrtcgw.NewGateway(logger)
 	// persist ASR results into DB
