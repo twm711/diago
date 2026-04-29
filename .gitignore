@@ -1,7 +1,52 @@
-/go.work*
-/diagox
-/cmd
-/TODO.md
-/PRIVATE_DEV*.md
-/license_header_inject.sh
-/*_extra_test.go
+# Binaries for programs and plugins
+/bin/
+/build/
+
+# Vendor
+vendor/
+
+# Test binary, coverage
+*.test
+coverage.out
+
+# OS files
+.DS_Store
+
+# Editor directories and files
+.vscode/
+.idea/
+*.swp
+*~
+
+# Environment
+.env
+.env.*
+
+# SQLite / local DB files
+*.db
+*.sqlite
+*.sqlite3
+
+# Logs
+*.log
+
+# Node
+node_modules/
+
+# Go workspace
+pkg/
+
+# kernel submodule (use upstream module instead)
+kernel/diago/
+
+# Frontend (Vite/React) build outputs and node modules
+/platform/web/dist/
+/platform/web/node_modules/
+/platform/web/.vite/
+/platform/web/build/
+
+# Node modules at platform root (if any)
+/platform/node_modules/
+
+# Temp files
+/tmp/
