@@ -38,3 +38,15 @@ pkg/
 
 # kernel submodule (use upstream module instead)
 kernel/diago/
+
+# Frontend (Vite/React) build outputs and node modules
+/platform/web/dist/
+/platform/web/node_modules/
+/platform/web/.vite/
+/platform/web/build/
+
+# Node modules at platform root (if any)
+/platform/node_modules/
+
+# Temp files
+/tmp/
