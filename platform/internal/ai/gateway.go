@@ -14,10 +14,12 @@ type Gateway struct {
 	mu sync.Mutex
 	// asrSessions keyed by pcID
 	asrSessions map[string]*ASRSession
+	// subscribers keyed by pcID -> set of chans
+	subscribers map[string]map[chan ASRResult]struct{}
 }
 
 func NewGateway(log *slog.Logger) *Gateway {
-	return &Gateway{log: log, asrSessions: map[string]*ASRSession{}}
+	return &Gateway{log: log, asrSessions: map[string]*ASRSession{}, subscribers: map[string]map[chan ASRResult]struct{}{}}
 }
 
 type ASRResult struct {
@@ -54,7 +56,9 @@ func (g *Gateway) StartASR(pcID string, r io.Reader) (<-chan ASRResult, error) {
 		for i := 0; i < 30; i++ { // limit to avoid runaway in stub
 			select {
 			case <-ctx.Done():
-				s.results <- ASRResult{Text: "", Final: true, Offset: offset}
+				res := ASRResult{Text: "", Final: true, Offset: offset}
+				s.results <- res
+				g.broadcast(pcID, res)
 				return
 			case <-ticker.C:
 				// attempt to read some audio bytes to advance offset
@@ -62,11 +66,15 @@ func (g *Gateway) StartASR(pcID string, r io.Reader) (<-chan ASRResult, error) {
 					offset += int64(n)
 				}
 				// emit a fake partial result
-				s.results <- ASRResult{Text: "(partial) hello world", Final: false, Offset: offset}
+				res := ASRResult{Text: "(partial) hello world", Final: false, Offset: offset}
+				s.results <- res
+				g.broadcast(pcID, res)
 			}
 		}
 		// after loop emit final
-		s.results <- ASRResult{Text: "hello world", Final: true, Offset: offset}
+		res := ASRResult{Text: "hello world", Final: true, Offset: offset}
+		s.results <- res
+		g.broadcast(pcID, res)
 	}()
 
 	return s.results, nil
@@ -81,6 +89,48 @@ func (g *Gateway) StopASR(pcID string) {
 	g.mu.Unlock()
 	if ok && s.cancel != nil {
 		s.cancel()
+	}
+}
+
+// SubscribeASR subscribes to ASR result stream for a pcID. Returns a channel and an unsubscribe func.
+func (g *Gateway) SubscribeASR(pcID string) (<-chan ASRResult, func()) {
+	ch := make(chan ASRResult, 8)
+	g.mu.Lock()
+	m, ok := g.subscribers[pcID]
+	if !ok {
+		m = map[chan ASRResult]struct{}{}
+		g.subscribers[pcID] = m
+	}
+	m[ch] = struct{}{}
+	g.mu.Unlock()
+	unsub := func() {
+		g.mu.Lock()
+		if m, ok := g.subscribers[pcID]; ok {
+			delete(m, ch)
+			if len(m) == 0 {
+				delete(g.subscribers, pcID)
+			}
+		}
+		g.mu.Unlock()
+		close(ch)
+	}
+	return ch, unsub
+}
+
+func (g *Gateway) broadcast(pcID string, res ASRResult) {
+	g.mu.Lock()
+	subs := g.subscribers[pcID]
+	// make a snapshot to avoid holding lock while sending
+	var chans []chan ASRResult
+	for c := range subs {
+		chans = append(chans, c)
+	}
+	g.mu.Unlock()
+	for _, c := range chans {
+		select {
+		case c <- res:
+		default:
+		}
 	}
 }
 

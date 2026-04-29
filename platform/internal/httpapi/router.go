@@ -7,6 +7,9 @@ import (
 	"net/http"
 	"time"
 
+	"github.com/gobwas/ws"
+	"github.com/gobwas/ws/wsutil"
+
 	"github.com/emiago/ai-call-center-platform/internal/ai"
 	"github.com/emiago/ai-call-center-platform/internal/call"
 	"github.com/emiago/ai-call-center-platform/internal/ivr"
@@ -149,6 +152,36 @@ func NewRouter(deps Deps) http.Handler {
 	mux.HandleFunc("GET /v1/agents", func(w http.ResponseWriter, r *http.Request) {
 		agents := deps.IVREngine.ListAgents()
 		_ = json.NewEncoder(w).Encode(agents)
+	})
+
+	// WebSocket endpoint for ASR real-time results
+	mux.HandleFunc("GET /v1/ws/asr", func(w http.ResponseWriter, r *http.Request) {
+		pcid := r.URL.Query().Get("pcid")
+		if pcid == "" {
+			http.Error(w, "missing pcid", http.StatusBadRequest)
+			return
+		}
+
+		conn, _, _, err := ws.UpgradeHTTP(r, w)
+		if err != nil {
+			deps.Logger.Error("ws upgrade", "err", err)
+			return
+		}
+		defer conn.Close()
+
+		ch, unsub := deps.AIGateway.SubscribeASR(pcid)
+		defer unsub()
+
+		// send existing ASR messages until client disconnects
+		for res := range ch {
+			b, _ := json.Marshal(res)
+			if err := wsutil.WriteServerMessage(conn, ws.OpText, b); err != nil {
+				break
+			}
+			if res.Final {
+				// after final, continue to wait for possible future sessions
+			}
+		}
 	})
 
 	mux.HandleFunc("POST /v1/webrtc/asr/start", func(w http.ResponseWriter, r *http.Request) {

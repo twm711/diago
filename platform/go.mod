@@ -7,6 +7,7 @@ toolchain go1.24.2
 require (
 	github.com/emiago/diago v0.28.0
 	github.com/emiago/sipgo v1.2.1
+	github.com/gobwas/ws v1.4.0
 	github.com/pion/rtp v1.8.18
 	github.com/pion/webrtc/v4 v4.0.0
 	gorm.io/driver/mysql v1.5.6
@@ -20,7 +21,6 @@ require (
 	github.com/go-sql-driver/mysql v1.7.0 // indirect
 	github.com/gobwas/httphead v0.1.0 // indirect
 	github.com/gobwas/pool v0.2.1 // indirect
-	github.com/gobwas/ws v1.4.0 // indirect
 	github.com/google/uuid v1.6.0 // indirect
 	github.com/icholy/digest v1.1.0 // indirect
 	github.com/jinzhu/inflection v1.0.0 // indirect
@@ -50,5 +50,3 @@ require (
 	golang.org/x/text v0.21.0 // indirect
 	gopkg.in/hraban/opus.v2 v2.0.0-20230925203106-0188a62cb302 // indirect
 )
-
-replace github.com/emiago/diago => ../kernel/diago
