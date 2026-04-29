@@ -5,6 +5,7 @@ import (
 	"log/slog"
 	"net/http"
 	"os"
+	"os/exec"
 	"os/signal"
 	"syscall"
 	"time"
@@ -35,8 +36,12 @@ func main() {
 
 	callService := call.NewService(database, logger)
 	aiGateway := ai.NewGateway(logger)
-	// configure a local stub provider with identity transcoder for development
-	stub := &ai.StubProvider{Transcoder: &ai.IdentityTranscoder{}}
+	// configure a local stub provider; prefer ffmpeg transcoder if available
+	var transcoder ai.Transcoder = &ai.IdentityTranscoder{}
+	if _, err := exec.LookPath("ffmpeg"); err == nil {
+		transcoder = &ai.ExternalFFmpegTranscoder{}
+	}
+	stub := &ai.StubProvider{Transcoder: transcoder}
 	aiGateway.SetProvider(stub)
 
 	webrtcGateway := webrtcgw.NewGateway(logger)
