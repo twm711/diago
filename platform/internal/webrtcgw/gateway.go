@@ -21,6 +21,8 @@ type Gateway struct {
 	TrackHandler func(pcID string, track *webrtc.TrackRemote, pc *webrtc.PeerConnection)
 	// mediaMap stores DialogMedia created from WebRTC peers keyed by pcID
 	mediaMap map[string]*diago.DialogMedia
+	// pcSession maps pcID -> session ID in DB
+	pcSession map[string]uint
 }
 
 func NewGateway(log *slog.Logger) *Gateway {
@@ -29,7 +31,26 @@ func NewGateway(log *slog.Logger) *Gateway {
 		api:      webrtc.NewAPI(),
 		peers:    map[string]*webrtc.PeerConnection{},
 		mediaMap: map[string]*diago.DialogMedia{},
+		pcSession: map[string]uint{},
 	}
+}
+
+// StorePCSession links a pcID to a persisted session ID
+func (g *Gateway) StorePCSession(pcID string, sessionID uint) {
+	g.mu.Lock()
+	defer g.mu.Unlock()
+	if pcID == "" {
+		return
+	}
+	g.pcSession[pcID] = sessionID
+}
+
+// GetSessionForPC returns the session ID associated with a pcID
+func (g *Gateway) GetSessionForPC(pcID string) (uint, bool) {
+	g.mu.Lock()
+	defer g.mu.Unlock()
+	id, ok := g.pcSession[pcID]
+	return id, ok
 }
 
 // StoreDialogMedia stores a DialogMedia for a peer connection id

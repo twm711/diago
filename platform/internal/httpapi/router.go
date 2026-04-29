@@ -108,12 +108,28 @@ func NewRouter(deps Deps) http.Handler {
 			}
 			if err := deps.CallService.CreateSession(r.Context(), &sess); err != nil {
 				deps.Logger.Warn("failed to persist session", "error", err)
+			} else {
+				// link pcID -> session for later lifecycle updates
+				deps.WebRTCGateway.StorePCSession(body.PCID, sess.ID)
 			}
 		}
 
 		// Send invite in background
 		go func() {
-			_ = d.Invite(context.Background(), diago.InviteClientOptions{})
+			err := d.Invite(context.Background(), diago.InviteClientOptions{})
+			// Update session state based on invite result
+			if deps.CallService != nil {
+				if err != nil {
+					// mark failed
+					if id, ok := deps.WebRTCGateway.GetSessionForPC(body.PCID); ok {
+						_ = deps.CallService.UpdateSessionState(context.Background(), id, "failed")
+					}
+				} else {
+					if id, ok := deps.WebRTCGateway.GetSessionForPC(body.PCID); ok {
+						_ = deps.CallService.UpdateSessionState(context.Background(), id, "established")
+					}
+				}
+			}
 		}()
 
 		writeJSON(w, http.StatusAccepted, map[string]any{"ok": true, "dialogId": d.Id()})
