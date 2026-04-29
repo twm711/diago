@@ -1,7 +1,37 @@
-/go.work*
-/diagox
-/cmd
-/TODO.md
-/PRIVATE_DEV*.md
-/license_header_inject.sh
-/*_extra_test.go
+# Binaries for programs and plugins
+/bin/
+/build/
+
+# Vendor
+vendor/
+
+# Test binary, coverage
+*.test
+coverage.out
+
+# OS files
+.DS_Store
+
+# Editor directories and files
+.vscode/
+.idea/
+*.swp
+*~
+
+# Environment
+.env
+.env.*
+
+# SQLite / local DB files
+*.db
+*.sqlite
+*.sqlite3
+
+# Logs
+*.log
+
+# Node
+node_modules/
+
+# Go workspace
+pkg/
