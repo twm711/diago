@@ -35,3 +35,6 @@ node_modules/
 
 # Go workspace
 pkg/
+
+# kernel submodule (use upstream module instead)
+kernel/diago/
