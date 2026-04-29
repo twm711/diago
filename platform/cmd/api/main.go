@@ -44,14 +44,20 @@ func main() {
 	// choose provider: if ASR endpoint configured, use WSNetProvider, otherwise local stub
 	if cfg.ASREndpoint != "" {
 		logger.Info("using WSNetProvider", "endpoint", cfg.ASREndpoint)
-		headers := make(map[string][]string)
-		// optionally pass auth via env var ASR_AUTH (e.g., Authorization: Bearer <token>)
-		if v := os.Getenv("ASR_AUTH"); v != "" {
-			headers["Authorization"] = []string{v}
-		}
 		netProv := ai.NewWSNetProvider(cfg.ASREndpoint, nil, logger)
 		netProv.Transcoder = transcoder
 		aiGateway.SetProvider(netProv)
+	} else if p := os.Getenv("ASR_PROVIDER"); p == "funasr" {
+		// use funasr local binary
+		// helper getEnv defined in platform/internal/config; read env directly here
+		cmd := os.Getenv("ASR_CMD")
+		if cmd == "" {
+			cmd = "funasr_local"
+		}
+		logger.Info("using FunASRProvider", "cmd", cmd)
+		fun := ai.NewFunASRProvider(cmd, nil, logger)
+		fun.Transcoder = transcoder
+		aiGateway.SetProvider(fun)
 	} else {
 		stub := &ai.StubProvider{Transcoder: transcoder}
 		aiGateway.SetProvider(stub)
